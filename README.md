@@ -26,81 +26,101 @@ This bot was created to translate Hungarian news from [24.hu](https://24.hu/) to
 
 ## 🚀 Quick Start
 
-### 1. Clone or Download
+### Method 1: Interactive Setup (Easiest!)
 
 ```bash
+# 1. Clone and install
 git clone <your-repo-url>
 cd rss-bot
+make install  # or: pip install -r requirements.txt
+
+# 2. Run interactive setup
+make setup    # or: ./setup.sh
+
+# 3. Test the bot
+make test     # or: source .env && python3 rss_bot.py --once
+
+# 4. Run the bot
+make run      # or: source .env && python3 rss_bot.py
 ```
 
-### 2. Install Dependencies
+### Method 2: One-Liner
 
 ```bash
-pip install -r requirements.txt
+git clone <repo-url> && cd rss-bot && make install && make setup && make run
 ```
 
-**For different translators:**
-```bash
-# Google Translate (free, default)
-pip install python-telegram-bot feedparser deep-translator
+### Method 3: Manual Setup
 
-# DeepL (best quality, free tier available)
-pip install python-telegram-bot feedparser deepl
+See [QUICKSTART.md](QUICKSTART.md) for detailed manual setup instructions.
 
-# OpenAI ChatGPT
-pip install python-telegram-bot feedparser openai
-
-# Anthropic Claude
-pip install python-telegram-bot feedparser anthropic
-```
-
-### 3. Create Telegram Bot
-
-1. Open Telegram and find `@BotFather`
-2. Send `/newbot` command
-3. Follow instructions to create your bot
-4. Copy the API token
-
-### 4. Create Telegram Channel
-
-1. In Telegram: Menu → New Channel
-2. Set name (e.g., "24.hu Новости")
-3. Choose Public or Private
-4. Add your bot as administrator with "Post messages" permission
-
-### 5. Configure the Bot
-
-Edit `config.py`:
-
-```python
-# Required settings
-TELEGRAM_TOKEN = "123456:ABC-your-bot-token-here"
-CHAT_ID = "@yourchannel"  # or "-1001234567890" for private channels
-RSS_URL = "https://24.hu/feed/"
-TRANSLATOR_TYPE = "google"  # Start with free Google Translate
-```
-
-### 6. Run the Bot
-
-```bash
-python3 rss_bot.py
-```
-
-That's it! Your bot is now running and will post new articles to your channel.
+For complete usage examples, see [USAGE.md](USAGE.md)
 
 ## ⚙️ Configuration
 
-All settings are in `config.py`:
+The bot supports three configuration methods:
 
-### Basic Settings
+### 1. Environment Variables (.env file) - **Recommended**
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `TELEGRAM_TOKEN` | Bot token from @BotFather | Required |
-| `CHAT_ID` | Channel username or chat ID | Required |
-| `RSS_URL` | RSS feed to monitor | Required |
-| `CHECK_INTERVAL` | Seconds between checks | 300 (5 min) |
-| `TRANSLATOR_TYPE` | Translation engine | "google" |
+Create `.env` file:
+```bash
+export TELEGRAM_TOKEN="your-token"
+export CHAT_ID="@yourchannel"
+export RSS_URL="https://24.hu/feed/"
+export TRANSLATOR_TYPE="google"
+```
+
+Run:
+```bash
+source .env && python3 rss_bot.py
+```
+
+### 2. Command-Line Arguments
+
+```bash
+python3 rss_bot.py \
+  --token "your-token" \
+  --chat "@yourchannel" \
+  --feed "https://24.hu/feed/" \
+  --translator google
+```
+
+### 3. Mix Both
+
+Set defaults in `.env`, override with arguments:
+```bash
+source .env
+python3 rss_bot.py --translator deepl --deepl-key "..."
+```
+
+### Configuration Options
+
+### Basic Configuration
+
+| Variable | Argument | Default | Description |
+|----------|----------|---------|-------------|
+| `TELEGRAM_TOKEN` | `--token` | Required | Bot token from @BotFather |
+| `CHAT_ID` | `--chat` | Required | Channel username or chat ID |
+| `RSS_URL` | `--feed` | `https://24.hu/feed/` | RSS feed to monitor |
+| `CHECK_INTERVAL` | `--interval` | `300` | Seconds between checks |
+| `TRANSLATOR_TYPE` | `--translator` | `google` | Translation engine |
+| `SOURCE_LANGUAGE` | `--source-lang` | `hu` | Source language code |
+| `TARGET_LANGUAGE` | `--target-lang` | `ru` | Target language code |
+| `LOG_LEVEL` | `--log-level` | `INFO` | Logging level |
+
+### Advanced Options
+
+| Variable | Argument | Default | Description |
+|----------|----------|---------|-------------|
+| `MAX_DESCRIPTION_LENGTH` | `--max-description` | `500` | Max description chars |
+| `MAX_CONTENT_LENGTH` | `--max-content` | `5000` | Max content chars |
+| `DEEPL_API_KEY` | `--deepl-key` | | DeepL API key |
+| `OPENAI_API_KEY` | `--openai-key` | | OpenAI API key |
+| `OPENAI_MODEL` | `--openai-model` | `gpt-4o-mini` | OpenAI model |
+| `ANTHROPIC_API_KEY` | `--anthropic-key` | | Anthropic API key |
+| `ANTHROPIC_MODEL` | `--anthropic-model` | `claude-3-5-haiku-20241022` | Claude model |
+
+For complete usage examples, see [USAGE.md](USAGE.md)
 
 ### Translation Engines
 
@@ -133,10 +153,11 @@ LOG_LEVEL = "INFO"               # Logging level
 1. Visit https://www.deepl.com/pro-api
 2. Sign up for free account
 3. Copy your API key
-4. Set in `config.py`:
-   ```python
-   TRANSLATOR_TYPE = "deepl"
-   DEEPL_API_KEY = "your-key-here"
+4. Use it:
+   ```bash
+   export DEEPL_API_KEY="your-key"
+   # or
+   python3 rss_bot.py --translator deepl --deepl-key "your-key"
    ```
 
 ### OpenAI ChatGPT
@@ -144,11 +165,11 @@ LOG_LEVEL = "INFO"               # Logging level
 1. Visit https://platform.openai.com/signup
 2. Add payment method
 3. Get API key from https://platform.openai.com/api-keys
-4. Set in `config.py`:
-   ```python
-   TRANSLATOR_TYPE = "openai"
-   OPENAI_API_KEY = "sk-proj-..."
-   OPENAI_MODEL = "gpt-4o-mini"  # or "gpt-4o"
+4. Use it:
+   ```bash
+   export OPENAI_API_KEY="sk-proj-..."
+   # or
+   python3 rss_bot.py --translator openai --openai-key "sk-proj-..."
    ```
 
 ### Anthropic Claude
@@ -156,11 +177,11 @@ LOG_LEVEL = "INFO"               # Logging level
 1. Visit https://console.anthropic.com/
 2. Sign up and add payment
 3. Get API key from settings
-4. Set in `config.py`:
-   ```python
-   TRANSLATOR_TYPE = "anthropic"
-   ANTHROPIC_API_KEY = "sk-ant-..."
-   ANTHROPIC_MODEL = "claude-3-5-haiku-20241022"
+4. Use it:
+   ```bash
+   export ANTHROPIC_API_KEY="sk-ant-..."
+   # or
+   python3 rss_bot.py --translator anthropic --anthropic-key "sk-ant-..."
    ```
 
 ## 🔧 Running as Daemon
@@ -394,12 +415,42 @@ id -gn  # Use this as Group
 ```
 rss-bot/
 ├── rss_bot.py              # Main bot code
-├── config.py               # Configuration (edit this!)
+├── setup.sh                # Interactive setup script
+├── Makefile                # Common commands (make help)
+├── .env                    # Your configuration (create this!)
+├── .env.example            # Configuration template
+├── .gitignore              # Git ignore file
 ├── requirements.txt        # Python dependencies
-├── README.md              # This file
+├── README.md              # Full documentation
+├── QUICKSTART.md          # One-page quick start
+├── USAGE.md               # Detailed usage examples
 ├── Dockerfile             # Docker container
 ├── docker-compose.yml     # Docker Compose config
 └── rss-bot.service        # systemd service file
+```
+
+## 🛠️ Makefile Commands
+
+The project includes a Makefile for convenience:
+
+```bash
+make help          # Show all commands
+make install       # Install dependencies
+make setup         # Run interactive setup
+make run           # Run the bot
+make test          # Test run (once)
+make debug         # Run with debug logging
+
+# Systemd
+make systemd-start   # Start service
+make systemd-stop    # Stop service
+make systemd-status  # Check status
+make systemd-logs    # View logs
+
+# Docker
+make docker-build    # Build image
+make docker-run      # Run container
+make docker-logs     # View logs
 ```
 
 ## 🔒 Security
@@ -408,7 +459,9 @@ rss-bot/
 
 Add to `.gitignore`:
 ```
-config.py
+.env
+.env.*
+!.env.example
 *.pyc
 __pycache__/
 *.log
@@ -416,9 +469,22 @@ subscribers.json
 ```
 
 ### Don't commit:
+- `.env` file
 - API keys
 - Bot tokens
 - Channel IDs
+
+### Use environment variables
+
+Instead of hardcoding secrets:
+```bash
+# Good ✅
+export TELEGRAM_TOKEN="secret"
+python3 rss_bot.py
+
+# Bad ❌
+python3 rss_bot.py --token "secret"  # Visible in process list!
+```
 
 ## 📈 Cost Estimation
 
