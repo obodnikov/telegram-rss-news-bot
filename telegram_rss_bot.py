@@ -271,24 +271,63 @@ class RSSBot:
     
     def format_message(self, entry):
         """Format and translate RSS entry for Telegram"""
+        import re
+        
         # Translate title
         title = self.translator.translate(entry.title)
         
-        # Translate summary/description if available
-        description = ""
-        if hasattr(entry, 'summary'):
-            import re
-            clean_summary = re.sub('<[^<]+?>', '', entry.summary)
-            # Limit description length for translation
-            description = self.translator.translate(clean_summary[:config.MAX_DESCRIPTION_LENGTH])
+        # Extract and translate description (use as header/summary)
+        header = ""
+        if hasattr(entry, 'summary') or hasattr(entry, 'description'):
+            raw_description = getattr(entry, 'summary', '') or getattr(entry, 'description', '')
+            # Clean HTML tags
+            clean_description = re.sub('<[^<]+?>', '', raw_description)
+            # Remove "The post ... first appeared on ..." footer
+            clean_description = re.sub(r'The post.*?first appeared on.*', '', clean_description, flags=re.DOTALL)
+            clean_description = clean_description.strip()
+            
+            if clean_description and len(clean_description) > 10:
+                # Limit length and translate
+                header = self.translator.translate(clean_description[:config.MAX_DESCRIPTION_LENGTH])
+        
+        # Extract and translate main content from content:encoded
+        main_content = ""
+        if hasattr(entry, 'content'):
+            # feedparser stores content in entry.content as a list of dicts
+            for content_item in entry.content:
+                if content_item.get('type') == 'text/html':
+                    raw_content = content_item.get('value', '')
+                    # Clean HTML tags
+                    clean_content = re.sub('<[^<]+?>', '', raw_content)
+                    # Remove extra whitespace
+                    clean_content = re.sub(r'\s+', ' ', clean_content).strip()
+                    # Remove "The post ... first appeared on ..." footer
+                    clean_content = re.sub(r'The post.*?first appeared on.*', '', clean_content, flags=re.DOTALL)
+                    clean_content = clean_content.strip()
+                    
+                    if clean_content and len(clean_content) > 10:
+                        # Translate content (limit to reasonable length)
+                        max_content_length = config.MAX_TRANSLATION_LENGTH
+                        if len(clean_content) > max_content_length:
+                            clean_content = clean_content[:max_content_length] + "..."
+                        main_content = self.translator.translate(clean_content)
+                    break
         
         # Get link
         link = entry.link if hasattr(entry, 'link') else ""
         
-        # Format message
+        # Format message with emphasis on description as header
         message = f"📰 <b>{title}</b>\n\n"
-        if description:
-            message += f"{description}\n\n"
+        
+        # Add description as prominent header/summary
+        if header:
+            message += f"<b><i>{header}</i></b>\n\n"
+        
+        # Add main content if available
+        if main_content:
+            message += f"{main_content}\n\n"
+        
+        # Add link
         if link:
             message += f"🔗 <a href='{link}'>Читать полностью</a>"
         
