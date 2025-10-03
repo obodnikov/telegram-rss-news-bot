@@ -1,20 +1,12 @@
 import asyncio
 import feedparser
 import hashlib
+import argparse
+import os
 from telegram import Bot
 from telegram.error import TelegramError
 import logging
 from abc import ABC, abstractmethod
-
-# Import configuration
-import config
-
-# Configure logging
-logging.basicConfig(
-    format=config.LOG_FORMAT,
-    level=getattr(logging, config.LOG_LEVEL)
-)
-logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -32,31 +24,31 @@ class Translator(ABC):
 class GoogleTranslator(Translator):
     """Google Translate (via deep-translator)"""
     
-    def __init__(self):
+    def __init__(self, source_lang: str, target_lang: str):
         from deep_translator import GoogleTranslator as GT
-        self.translator = GT(source=config.SOURCE_LANGUAGE, target=config.TARGET_LANGUAGE)
+        self.translator = GT(source=source_lang, target=target_lang)
+        self.max_length = 5000
     
     def translate(self, text: str) -> str:
         try:
-            if len(text) > config.MAX_TRANSLATION_LENGTH:
-                chunks = [text[i:i+config.MAX_TRANSLATION_LENGTH] 
-                         for i in range(0, len(text), config.MAX_TRANSLATION_LENGTH)]
+            if len(text) > self.max_length:
+                chunks = [text[i:i+self.max_length] 
+                         for i in range(0, len(text), self.max_length)]
                 return ' '.join([self.translator.translate(chunk) for chunk in chunks])
             return self.translator.translate(text)
         except Exception as e:
-            logger.error(f"Google translation error: {e}")
+            logging.error(f"Google translation error: {e}")
             return text
 
 
 class DeepLTranslator(Translator):
     """DeepL API - Best quality, requires API key"""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, source_lang: str, target_lang: str):
         import deepl
         self.translator = deepl.Translator(api_key)
-        # Map language codes to DeepL format
-        self.source = config.SOURCE_LANGUAGE.upper()
-        self.target = config.TARGET_LANGUAGE.upper()
+        self.source = source_lang.upper()
+        self.target = target_lang.upper()
     
     def translate(self, text: str) -> str:
         try:
@@ -67,19 +59,19 @@ class DeepLTranslator(Translator):
             )
             return result.text
         except Exception as e:
-            logger.error(f"DeepL translation error: {e}")
+            logging.error(f"DeepL translation error: {e}")
             return text
 
 
 class OpenAITranslator(Translator):
     """OpenAI ChatGPT - High quality, requires API key"""
     
-    def __init__(self, api_key: str, model: str):
+    def __init__(self, api_key: str, source_lang: str, target_lang: str, model: str = "gpt-4o-mini"):
         from openai import OpenAI
         self.client = OpenAI(api_key=api_key)
         self.model = model
-        self.source_lang = self._get_language_name(config.SOURCE_LANGUAGE)
-        self.target_lang = self._get_language_name(config.TARGET_LANGUAGE)
+        self.source_lang = self._get_language_name(source_lang)
+        self.target_lang = self._get_language_name(target_lang)
     
     def _get_language_name(self, code: str) -> str:
         """Convert language code to full name"""
@@ -106,19 +98,19 @@ class OpenAITranslator(Translator):
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"OpenAI translation error: {e}")
+            logging.error(f"OpenAI translation error: {e}")
             return text
 
 
 class AnthropicTranslator(Translator):
     """Anthropic Claude - High quality, requires API key"""
     
-    def __init__(self, api_key: str, model: str):
+    def __init__(self, api_key: str, source_lang: str, target_lang: str, model: str = "claude-3-5-haiku-20241022"):
         from anthropic import Anthropic
         self.client = Anthropic(api_key=api_key)
         self.model = model
-        self.source_lang = self._get_language_name(config.SOURCE_LANGUAGE)
-        self.target_lang = self._get_language_name(config.TARGET_LANGUAGE)
+        self.source_lang = self._get_language_name(source_lang)
+        self.target_lang = self._get_language_name(target_lang)
     
     def _get_language_name(self, code: str) -> str:
         """Convert language code to full name"""
@@ -144,38 +136,40 @@ class AnthropicTranslator(Translator):
             )
             return message.content[0].text.strip()
         except Exception as e:
-            logger.error(f"Anthropic translation error: {e}")
+            logging.error(f"Anthropic translation error: {e}")
             return text
 
 
 class LibreTranslator(Translator):
     """LibreTranslate - Free and open source"""
     
-    def __init__(self, api_url: str):
+    def __init__(self, source_lang: str, target_lang: str, api_url: str = "https://libretranslate.com/translate"):
         import requests
         self.api_url = api_url
         self.session = requests.Session()
+        self.source = source_lang
+        self.target = target_lang
     
     def translate(self, text: str) -> str:
         try:
             response = self.session.post(self.api_url, json={
                 "q": text,
-                "source": config.SOURCE_LANGUAGE,
-                "target": config.TARGET_LANGUAGE,
+                "source": self.source,
+                "target": self.target,
                 "format": "text"
             })
             return response.json()["translatedText"]
         except Exception as e:
-            logger.error(f"LibreTranslate error: {e}")
+            logging.error(f"LibreTranslate error: {e}")
             return text
 
 
 class MyMemoryTranslator(Translator):
     """MyMemory Translation API - Free, no API key needed"""
     
-    def __init__(self):
+    def __init__(self, source_lang: str, target_lang: str):
         from deep_translator import MyMemoryTranslator as MMT
-        self.translator = MMT(source=config.SOURCE_LANGUAGE, target=config.TARGET_LANGUAGE)
+        self.translator = MMT(source=source_lang, target=target_lang)
     
     def translate(self, text: str) -> str:
         try:
@@ -184,7 +178,7 @@ class MyMemoryTranslator(Translator):
                 return ' '.join([self.translator.translate(chunk) for chunk in chunks])
             return self.translator.translate(text)
         except Exception as e:
-            logger.error(f"MyMemory translation error: {e}")
+            logging.error(f"MyMemory translation error: {e}")
             return text
 
 
@@ -192,45 +186,40 @@ class MyMemoryTranslator(Translator):
 # TRANSLATOR FACTORY
 # ============================================================================
 
-def create_translator() -> Translator:
-    """Create translator instance based on config"""
-    translator_type = config.TRANSLATOR_TYPE.lower()
+def create_translator(translator_type: str, source_lang: str, target_lang: str, 
+                      api_key: str = None, model: str = None, api_url: str = None) -> Translator:
+    """Create translator instance based on type"""
+    translator_type = translator_type.lower()
     
     if translator_type == "google":
-        logger.info("Using Google Translate")
-        return GoogleTranslator()
+        logging.info("Using Google Translate")
+        return GoogleTranslator(source_lang, target_lang)
         
     elif translator_type == "mymemory":
-        logger.info("Using MyMemory Translator")
-        return MyMemoryTranslator()
+        logging.info("Using MyMemory Translator")
+        return MyMemoryTranslator(source_lang, target_lang)
         
     elif translator_type == "libretranslate":
-        logger.info("Using LibreTranslate")
-        return LibreTranslator(api_url=config.LIBRETRANSLATE_API_URL)
+        logging.info("Using LibreTranslate")
+        return LibreTranslator(source_lang, target_lang, api_url or "https://libretranslate.com/translate")
         
     elif translator_type == "deepl":
-        logger.info("Using DeepL")
-        if config.DEEPL_API_KEY == "your-deepl-key-here":
-            raise ValueError("Please set DEEPL_API_KEY in config.py")
-        return DeepLTranslator(api_key=config.DEEPL_API_KEY)
+        logging.info("Using DeepL")
+        if not api_key:
+            raise ValueError("DeepL requires API key. Use --deepl-key or DEEPL_API_KEY env variable")
+        return DeepLTranslator(api_key, source_lang, target_lang)
         
     elif translator_type == "openai":
-        logger.info(f"Using OpenAI ({config.OPENAI_MODEL})")
-        if config.OPENAI_API_KEY == "your-openai-key-here":
-            raise ValueError("Please set OPENAI_API_KEY in config.py")
-        return OpenAITranslator(
-            api_key=config.OPENAI_API_KEY,
-            model=config.OPENAI_MODEL
-        )
+        logging.info(f"Using OpenAI ({model or 'gpt-4o-mini'})")
+        if not api_key:
+            raise ValueError("OpenAI requires API key. Use --openai-key or OPENAI_API_KEY env variable")
+        return OpenAITranslator(api_key, source_lang, target_lang, model or "gpt-4o-mini")
         
     elif translator_type == "anthropic":
-        logger.info(f"Using Anthropic Claude ({config.ANTHROPIC_MODEL})")
-        if config.ANTHROPIC_API_KEY == "your-anthropic-key-here":
-            raise ValueError("Please set ANTHROPIC_API_KEY in config.py")
-        return AnthropicTranslator(
-            api_key=config.ANTHROPIC_API_KEY,
-            model=config.ANTHROPIC_MODEL
-        )
+        logging.info(f"Using Anthropic Claude ({model or 'claude-3-5-haiku-20241022'})")
+        if not api_key:
+            raise ValueError("Anthropic requires API key. Use --anthropic-key or ANTHROPIC_API_KEY env variable")
+        return AnthropicTranslator(api_key, source_lang, target_lang, model or "claude-3-5-haiku-20241022")
     
     else:
         raise ValueError(f"Unknown translator type: {translator_type}")
@@ -241,7 +230,8 @@ def create_translator() -> Translator:
 # ============================================================================
 
 class RSSBot:
-    def __init__(self, telegram_token, chat_id, rss_url, translator: Translator, check_interval):
+    def __init__(self, telegram_token, chat_id, rss_url, translator: Translator, 
+                 check_interval, max_description_length=500, max_content_length=5000):
         """
         Initialize the RSS bot
         
@@ -251,6 +241,8 @@ class RSSBot:
             rss_url: URL of the RSS feed to monitor
             translator: Translator instance
             check_interval: Seconds between feed checks
+            max_description_length: Max chars for description
+            max_content_length: Max chars for content
         """
         self.bot = Bot(token=telegram_token)
         self.chat_id = chat_id
@@ -258,6 +250,8 @@ class RSSBot:
         self.check_interval = check_interval
         self.seen_entries = set()
         self.translator = translator
+        self.max_description_length = max_description_length
+        self.max_content_length = max_content_length
         
     def get_entry_id(self, entry):
         """Generate a unique ID for an RSS entry"""
@@ -288,7 +282,7 @@ class RSSBot:
             
             if clean_description and len(clean_description) > 10:
                 # Limit length and translate
-                header = self.translator.translate(clean_description[:config.MAX_DESCRIPTION_LENGTH])
+                header = self.translator.translate(clean_description[:self.max_description_length])
         
         # Extract and translate main content from content:encoded
         main_content = ""
@@ -307,9 +301,8 @@ class RSSBot:
                     
                     if clean_content and len(clean_content) > 10:
                         # Translate content (limit to reasonable length)
-                        max_content_length = config.MAX_TRANSLATION_LENGTH
-                        if len(clean_content) > max_content_length:
-                            clean_content = clean_content[:max_content_length] + "..."
+                        if len(clean_content) > self.max_content_length:
+                            clean_content = clean_content[:self.max_content_length] + "..."
                         main_content = self.translator.translate(clean_content)
                     break
         
@@ -342,18 +335,18 @@ class RSSBot:
                 parse_mode='HTML',
                 disable_web_page_preview=False
             )
-            logger.info("Message sent successfully")
+            logging.info("Message sent successfully")
         except TelegramError as e:
-            logger.error(f"Failed to send message: {e}")
+            logging.error(f"Failed to send message: {e}")
     
     async def check_feed(self):
         """Check RSS feed for new entries"""
         try:
-            logger.info(f"Checking feed: {self.rss_url}")
+            logging.info(f"Checking feed: {self.rss_url}")
             feed = feedparser.parse(self.rss_url)
             
             if feed.bozo:
-                logger.warning(f"Feed parsing warning: {feed.bozo_exception}")
+                logging.warning(f"Feed parsing warning: {feed.bozo_exception}")
             
             # Process entries in reverse order (oldest first)
             new_entries = []
@@ -367,23 +360,23 @@ class RSSBot:
             for entry in new_entries:
                 message = self.format_message(entry)
                 await self.send_message(message)
-                await asyncio.sleep(config.MESSAGE_DELAY)
+                await asyncio.sleep(2)
             
             if new_entries:
-                logger.info(f"Processed {len(new_entries)} new entries")
+                logging.info(f"Processed {len(new_entries)} new entries")
             else:
-                logger.info("No new entries found")
+                logging.info("No new entries found")
                 
         except Exception as e:
-            logger.error(f"Error checking feed: {e}")
+            logging.error(f"Error checking feed: {e}")
     
     async def start(self):
         """Start the bot and continuously monitor the feed"""
-        logger.info("Starting RSS bot...")
-        logger.info(f"Feed: {self.rss_url}")
-        logger.info(f"Target: {self.chat_id}")
-        logger.info(f"Translator: {self.translator.__class__.__name__}")
-        logger.info(f"Check interval: {self.check_interval} seconds")
+        logging.info("Starting RSS bot...")
+        logging.info(f"Feed: {self.rss_url}")
+        logging.info(f"Target: {self.chat_id}")
+        logging.info(f"Translator: {self.translator.__class__.__name__}")
+        logging.info(f"Check interval: {self.check_interval} seconds")
         
         # Initial feed check to populate seen_entries
         await self.check_feed()
@@ -399,27 +392,188 @@ class RSSBot:
 
 
 # ============================================================================
+# COMMAND LINE INTERFACE
+# ============================================================================
+
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description='Telegram RSS Bot - Translate and post RSS feeds to Telegram',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Using Google Translate (free)
+  python rss_bot.py --token "YOUR_TOKEN" --chat "@channel" --feed "https://24.hu/feed/"
+  
+  # Using DeepL
+  python rss_bot.py --token "YOUR_TOKEN" --chat "@channel" --feed "https://24.hu/feed/" \\
+    --translator deepl --deepl-key "YOUR_DEEPL_KEY"
+  
+  # Using OpenAI
+  python rss_bot.py --token "YOUR_TOKEN" --chat "@channel" --feed "https://24.hu/feed/" \\
+    --translator openai --openai-key "YOUR_OPENAI_KEY"
+  
+  # Using environment variables
+  export TELEGRAM_TOKEN="YOUR_TOKEN"
+  export CHAT_ID="@channel"
+  python rss_bot.py --feed "https://24.hu/feed/"
+
+Environment variables:
+  TELEGRAM_TOKEN    - Telegram bot token
+  CHAT_ID          - Channel username or chat ID
+  RSS_URL          - RSS feed URL
+  DEEPL_API_KEY    - DeepL API key
+  OPENAI_API_KEY   - OpenAI API key
+  ANTHROPIC_API_KEY - Anthropic API key
+        """
+    )
+    
+    # Required arguments (can be set via env vars)
+    parser.add_argument('--token', '-t',
+                        default=os.getenv('TELEGRAM_TOKEN'),
+                        help='Telegram bot token (or set TELEGRAM_TOKEN env var)')
+    
+    parser.add_argument('--chat', '-c',
+                        default=os.getenv('CHAT_ID'),
+                        help='Channel username (@channel) or chat ID (or set CHAT_ID env var)')
+    
+    parser.add_argument('--feed', '-f',
+                        default=os.getenv('RSS_URL', 'https://24.hu/feed/'),
+                        help='RSS feed URL (default: https://24.hu/feed/)')
+    
+    # Translation settings
+    parser.add_argument('--translator', '-tr',
+                        default=os.getenv('TRANSLATOR_TYPE', 'google'),
+                        choices=['google', 'deepl', 'openai', 'anthropic', 'libretranslate', 'mymemory'],
+                        help='Translation engine (default: google)')
+    
+    parser.add_argument('--source-lang', '-sl',
+                        default=os.getenv('SOURCE_LANGUAGE', 'hu'),
+                        help='Source language code (default: hu)')
+    
+    parser.add_argument('--target-lang', '-tl',
+                        default=os.getenv('TARGET_LANGUAGE', 'ru'),
+                        help='Target language code (default: ru)')
+    
+    # API keys
+    parser.add_argument('--deepl-key',
+                        default=os.getenv('DEEPL_API_KEY'),
+                        help='DeepL API key')
+    
+    parser.add_argument('--openai-key',
+                        default=os.getenv('OPENAI_API_KEY'),
+                        help='OpenAI API key')
+    
+    parser.add_argument('--openai-model',
+                        default=os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
+                        help='OpenAI model (default: gpt-4o-mini)')
+    
+    parser.add_argument('--anthropic-key',
+                        default=os.getenv('ANTHROPIC_API_KEY'),
+                        help='Anthropic API key')
+    
+    parser.add_argument('--anthropic-model',
+                        default=os.getenv('ANTHROPIC_MODEL', 'claude-3-5-haiku-20241022'),
+                        help='Anthropic model (default: claude-3-5-haiku-20241022)')
+    
+    parser.add_argument('--libretranslate-url',
+                        default=os.getenv('LIBRETRANSLATE_API_URL', 'https://libretranslate.com/translate'),
+                        help='LibreTranslate API URL')
+    
+    # Bot settings
+    parser.add_argument('--interval', '-i',
+                        type=int,
+                        default=int(os.getenv('CHECK_INTERVAL', '300')),
+                        help='Check interval in seconds (default: 300)')
+    
+    parser.add_argument('--max-description',
+                        type=int,
+                        default=int(os.getenv('MAX_DESCRIPTION_LENGTH', '500')),
+                        help='Max description length (default: 500)')
+    
+    parser.add_argument('--max-content',
+                        type=int,
+                        default=int(os.getenv('MAX_CONTENT_LENGTH', '5000')),
+                        help='Max content length (default: 5000)')
+    
+    # Other options
+    parser.add_argument('--once',
+                        action='store_true',
+                        help='Run once and exit (for testing)')
+    
+    parser.add_argument('--log-level',
+                        default=os.getenv('LOG_LEVEL', 'INFO'),
+                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                        help='Logging level (default: INFO)')
+    
+    return parser.parse_args()
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
 async def main():
-    # Create translator from config
-    translator = create_translator()
+    args = parse_args()
     
-    # Create and start bot
-    bot = RSSBot(
-        telegram_token=config.TELEGRAM_TOKEN,
-        chat_id=config.CHAT_ID,
-        rss_url=config.RSS_URL,
-        translator=translator,
-        check_interval=config.CHECK_INTERVAL
+    # Configure logging
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=getattr(logging, args.log_level)
     )
     
-    # Start continuous monitoring
-    await bot.start()
+    # Validate required arguments
+    if not args.token:
+        logging.error("Telegram token is required. Use --token or set TELEGRAM_TOKEN env var")
+        return
     
-    # Or for testing, run once:
-    # await bot.run_once()
+    if not args.chat:
+        logging.error("Chat ID is required. Use --chat or set CHAT_ID env var")
+        return
+    
+    # Select API key based on translator
+    api_key = None
+    model = None
+    api_url = None
+    
+    if args.translator == 'deepl':
+        api_key = args.deepl_key
+    elif args.translator == 'openai':
+        api_key = args.openai_key
+        model = args.openai_model
+    elif args.translator == 'anthropic':
+        api_key = args.anthropic_key
+        model = args.anthropic_model
+    elif args.translator == 'libretranslate':
+        api_url = args.libretranslate_url
+    
+    # Create translator
+    translator = create_translator(
+        args.translator,
+        args.source_lang,
+        args.target_lang,
+        api_key,
+        model,
+        api_url
+    )
+    
+    # Create bot
+    bot = RSSBot(
+        telegram_token=args.token,
+        chat_id=args.chat,
+        rss_url=args.feed,
+        translator=translator,
+        check_interval=args.interval,
+        max_description_length=args.max_description,
+        max_content_length=args.max_content
+    )
+    
+    # Run bot
+    if args.once:
+        logging.info("Running single check...")
+        await bot.run_once()
+    else:
+        await bot.start()
 
 
 if __name__ == "__main__":
