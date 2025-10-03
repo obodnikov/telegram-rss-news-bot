@@ -1,93 +1,485 @@
-# Telegram RSS News Bot
+# 📰 Telegram RSS News Bot
 
+A Telegram bot that monitors RSS feeds, translates articles, and posts them to your Telegram channel. Perfect for translating news from any language to another!
 
+## ✨ Features
 
-## Getting started
+- 🔄 **Automatic RSS Monitoring** - Periodically checks RSS feeds for new articles
+- 🌍 **Multi-Language Translation** - Supports 6 different translation engines
+- 📢 **Channel Broadcasting** - Posts directly to Telegram channels
+- 🎯 **Smart Formatting** - Clean, readable messages with titles, summaries, and content
+- 🔁 **Auto-Restart** - Runs as a daemon with automatic restart on failures
+- 📝 **Full Content** - Extracts both description and full article content
+- 🚫 **Duplicate Prevention** - Never posts the same article twice
+- 📊 **Logging** - Comprehensive logging for monitoring and debugging
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 🎯 Use Case
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+This bot was created to translate Hungarian news from [24.hu](https://24.hu/) to Russian, but can be configured for any RSS feed and language pair!
 
-## Add your files
+## 📋 Requirements
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- Python 3.8+
+- Telegram Bot Token
+- Telegram Channel
+- Internet connection
+
+## 🚀 Quick Start
+
+### 1. Clone or Download
+
+```bash
+git clone <your-repo-url>
+cd rss-bot
+```
+
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+**For different translators:**
+```bash
+# Google Translate (free, default)
+pip install python-telegram-bot feedparser deep-translator
+
+# DeepL (best quality, free tier available)
+pip install python-telegram-bot feedparser deepl
+
+# OpenAI ChatGPT
+pip install python-telegram-bot feedparser openai
+
+# Anthropic Claude
+pip install python-telegram-bot feedparser anthropic
+```
+
+### 3. Create Telegram Bot
+
+1. Open Telegram and find `@BotFather`
+2. Send `/newbot` command
+3. Follow instructions to create your bot
+4. Copy the API token
+
+### 4. Create Telegram Channel
+
+1. In Telegram: Menu → New Channel
+2. Set name (e.g., "24.hu Новости")
+3. Choose Public or Private
+4. Add your bot as administrator with "Post messages" permission
+
+### 5. Configure the Bot
+
+Edit `config.py`:
+
+```python
+# Required settings
+TELEGRAM_TOKEN = "123456:ABC-your-bot-token-here"
+CHAT_ID = "@yourchannel"  # or "-1001234567890" for private channels
+RSS_URL = "https://24.hu/feed/"
+TRANSLATOR_TYPE = "google"  # Start with free Google Translate
+```
+
+### 6. Run the Bot
+
+```bash
+python3 rss_bot.py
+```
+
+That's it! Your bot is now running and will post new articles to your channel.
+
+## ⚙️ Configuration
+
+All settings are in `config.py`:
+
+### Basic Settings
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `TELEGRAM_TOKEN` | Bot token from @BotFather | Required |
+| `CHAT_ID` | Channel username or chat ID | Required |
+| `RSS_URL` | RSS feed to monitor | Required |
+| `CHECK_INTERVAL` | Seconds between checks | 300 (5 min) |
+| `TRANSLATOR_TYPE` | Translation engine | "google" |
+
+### Translation Engines
+
+| Engine | Quality | Cost | API Key | Best For |
+|--------|---------|------|---------|----------|
+| `google` | ⭐⭐⭐ | FREE | No | Quick start |
+| `mymemory` | ⭐⭐⭐ | FREE | No | Alternative |
+| `libretranslate` | ⭐⭐⭐ | FREE | No | Privacy |
+| `deepl` | ⭐⭐⭐⭐⭐ | FREE* | Yes | Best quality |
+| `openai` | ⭐⭐⭐⭐⭐ | Paid | Yes | Context-aware |
+| `anthropic` | ⭐⭐⭐⭐⭐ | Paid | Yes | High quality |
+
+*DeepL: 500,000 characters/month free
+
+### Advanced Settings
+
+```python
+SOURCE_LANGUAGE = "hu"           # Source language code
+TARGET_LANGUAGE = "ru"           # Target language code
+MAX_TRANSLATION_LENGTH = 5000    # Max chars per translation
+MAX_DESCRIPTION_LENGTH = 500     # Max description length
+MESSAGE_DELAY = 2                # Delay between messages (seconds)
+LOG_LEVEL = "INFO"               # Logging level
+```
+
+## 🔑 Getting API Keys
+
+### DeepL (Recommended - 500k chars/month FREE)
+
+1. Visit https://www.deepl.com/pro-api
+2. Sign up for free account
+3. Copy your API key
+4. Set in `config.py`:
+   ```python
+   TRANSLATOR_TYPE = "deepl"
+   DEEPL_API_KEY = "your-key-here"
+   ```
+
+### OpenAI ChatGPT
+
+1. Visit https://platform.openai.com/signup
+2. Add payment method
+3. Get API key from https://platform.openai.com/api-keys
+4. Set in `config.py`:
+   ```python
+   TRANSLATOR_TYPE = "openai"
+   OPENAI_API_KEY = "sk-proj-..."
+   OPENAI_MODEL = "gpt-4o-mini"  # or "gpt-4o"
+   ```
+
+### Anthropic Claude
+
+1. Visit https://console.anthropic.com/
+2. Sign up and add payment
+3. Get API key from settings
+4. Set in `config.py`:
+   ```python
+   TRANSLATOR_TYPE = "anthropic"
+   ANTHROPIC_API_KEY = "sk-ant-..."
+   ANTHROPIC_MODEL = "claude-3-5-haiku-20241022"
+   ```
+
+## 🔧 Running as Daemon
+
+### Linux (systemd) - Recommended
+
+1. Create service file:
+   ```bash
+   sudo nano /etc/systemd/system/rss-bot.service
+   ```
+
+2. Paste (replace paths and username):
+   ```ini
+   [Unit]
+   Description=Telegram RSS Bot
+   After=network-online.target
+
+   [Service]
+   Type=simple
+   User=yourusername
+   Group=yourusername
+   WorkingDirectory=/home/yourusername/rss-bot
+   ExecStart=/usr/bin/python3 /home/yourusername/rss-bot/rss_bot.py
+   Restart=always
+   RestartSec=10
+   StandardOutput=journal
+   StandardError=journal
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. Enable and start:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable rss-bot
+   sudo systemctl start rss-bot
+   sudo systemctl status rss-bot
+   ```
+
+4. View logs:
+   ```bash
+   sudo journalctl -u rss-bot -f
+   ```
+
+### macOS (launchd)
+
+1. Create plist file:
+   ```bash
+   nano ~/Library/LaunchAgents/com.rssbot.plist
+   ```
+
+2. Paste (replace paths):
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+   <plist version="1.0">
+   <dict>
+       <key>Label</key>
+       <string>com.rssbot</string>
+       <key>ProgramArguments</key>
+       <array>
+           <string>/usr/local/bin/python3</string>
+           <string>/Users/yourusername/rss-bot/rss_bot.py</string>
+       </array>
+       <key>WorkingDirectory</key>
+       <string>/Users/yourusername/rss-bot</string>
+       <key>RunAtLoad</key>
+       <true/>
+       <key>KeepAlive</key>
+       <true/>
+       <key>StandardOutPath</key>
+       <string>/Users/yourusername/rss-bot/bot.log</string>
+       <key>StandardErrorPath</key>
+       <string>/Users/yourusername/rss-bot/bot.error.log</string>
+   </dict>
+   </plist>
+   ```
+
+3. Load:
+   ```bash
+   launchctl load ~/Library/LaunchAgents/com.rssbot.plist
+   ```
+
+### Docker
+
+1. Build:
+   ```bash
+   docker build -t rss-bot .
+   ```
+
+2. Run:
+   ```bash
+   docker run -d --name rss-bot --restart=always rss-bot
+   ```
+
+3. Logs:
+   ```bash
+   docker logs -f rss-bot
+   ```
+
+### Quick Options (Testing)
+
+**screen:**
+```bash
+screen -S rssbot
+python3 rss_bot.py
+# Press Ctrl+A, then D to detach
+```
+
+**tmux:**
+```bash
+tmux new -s rssbot
+python3 rss_bot.py
+# Press Ctrl+B, then D to detach
+```
+
+**nohup:**
+```bash
+nohup python3 rss_bot.py > bot.log 2>&1 &
+```
+
+## 📊 Message Format
+
+The bot creates nicely formatted messages:
 
 ```
-cd existing_repo
-git remote add origin http://gitlab.obodnikov.com/mike/telegram-rss-news-bot.git
-git branch -M main
-git push -uf origin main
+📰 Article Title (translated)
+
+Brief summary from description - emphasized as header
+
+Full article content translated from the RSS feed.
+Can be quite long, includes the complete article text.
+
+🔗 Read full article
 ```
 
-## Integrate with your tools
+**Formatting:**
+- Title: **Bold**
+- Description: **Bold + Italic** (emphasized header)
+- Content: Regular text
+- Link: Clickable with emoji
 
-- [ ] [Set up project integrations](http://gitlab.obodnikov.com/mike/telegram-rss-news-bot/-/settings/integrations)
+## 🔍 Monitoring
 
-## Collaborate with your team
+### Check if bot is running
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+**systemd:**
+```bash
+sudo systemctl status rss-bot
+```
 
-## Test and Deploy
+**Process:**
+```bash
+ps aux | grep rss_bot.py
+```
 
-Use the built-in continuous integration in GitLab.
+### View logs
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+**systemd:**
+```bash
+sudo journalctl -u rss-bot -f
+```
 
-***
+**Docker:**
+```bash
+docker logs -f rss-bot
+```
 
-# Editing this README
+**File:**
+```bash
+tail -f bot.log
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 🐛 Troubleshooting
 
-## Suggestions for a good README
+### Bot doesn't start
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+1. Check configuration:
+   ```bash
+   python3 rss_bot.py
+   # Look for error messages
+   ```
 
-## Name
-Choose a self-explaining name for your project.
+2. Verify bot token:
+   ```python
+   # In config.py, make sure TELEGRAM_TOKEN is correct
+   ```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+3. Check Python path:
+   ```bash
+   which python3
+   # Use this path in service files
+   ```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### No messages posted
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+1. Verify channel setup:
+   - Bot is administrator
+   - Bot has "Post messages" permission
+   - Channel ID is correct (use @username or numeric ID)
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+2. Check RSS feed:
+   ```bash
+   curl https://24.hu/feed/
+   # Should return XML content
+   ```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+3. Test manually:
+   ```bash
+   python3 rss_bot.py
+   # Watch for errors in console
+   ```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Translation errors
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+1. **Google/MyMemory**: Check internet connection
+2. **DeepL/OpenAI/Anthropic**: Verify API key is correct
+3. Check logs for specific error messages
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### "No such process" error (systemd)
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Replace `User` and `Group` in service file:
+```bash
+whoami  # Use this as User
+id -gn  # Use this as Group
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## 📁 Project Structure
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```
+rss-bot/
+├── rss_bot.py              # Main bot code
+├── config.py               # Configuration (edit this!)
+├── requirements.txt        # Python dependencies
+├── README.md              # This file
+├── Dockerfile             # Docker container
+├── docker-compose.yml     # Docker Compose config
+└── rss-bot.service        # systemd service file
+```
 
-## License
-For open source projects, say how it is licensed.
+## 🔒 Security
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### Protect your secrets
+
+Add to `.gitignore`:
+```
+config.py
+*.pyc
+__pycache__/
+*.log
+subscribers.json
+```
+
+### Don't commit:
+- API keys
+- Bot tokens
+- Channel IDs
+
+## 📈 Cost Estimation
+
+For ~50 articles/day, ~200 words each:
+
+| Translator | Monthly Cost | Quality |
+|------------|--------------|---------|
+| Google | FREE | ⭐⭐⭐ |
+| DeepL | FREE | ⭐⭐⭐⭐⭐ |
+| ChatGPT (mini) | ~$2-5 | ⭐⭐⭐⭐⭐ |
+| Claude (Haiku) | ~$3-7 | ⭐⭐⭐⭐⭐ |
+
+## 🎯 Recommendations
+
+### Getting Started
+**Use Google Translate** - Free, works immediately, no setup
+
+### Best Free Option
+**Use DeepL free tier** - 500k chars/month, excellent quality
+
+### Best Overall
+**DeepL or ChatGPT (gpt-4o-mini)** - Great quality, very affordable
+
+### Maximum Quality
+**ChatGPT (gpt-4o) or Claude Sonnet** - Best translations, understands context
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to:
+- Report bugs
+- Suggest features
+- Submit pull requests
+
+## 📝 License
+
+This project is open source. Feel free to use and modify!
+
+## 🆘 Support
+
+If you encounter issues:
+
+1. Check the troubleshooting section
+2. Review logs for error messages
+3. Verify configuration settings
+4. Test components individually
+
+## 🔗 Useful Links
+
+- [Telegram Bot API](https://core.telegram.org/bots/api)
+- [DeepL API](https://www.deepl.com/pro-api)
+- [OpenAI Platform](https://platform.openai.com/)
+- [Anthropic Console](https://console.anthropic.com/)
+- [RSS 2.0 Specification](https://www.rssboard.org/rss-specification)
+
+## 🎉 Acknowledgments
+
+Built with:
+- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
+- [feedparser](https://github.com/kurtmckee/feedparser)
+- Various translation APIs
+
+---
+
+**Made with ❤️ for keeping you informed in your preferred language!**
