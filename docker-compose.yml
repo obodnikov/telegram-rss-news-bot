@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  rss-bot:
+    build: .
+    container_name: rss-bot
+    restart: always
+    volumes:
+      - ./config.py:/app/config.py:ro
+      - ./subscribers.json:/app/subscribers.json
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
