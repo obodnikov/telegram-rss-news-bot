@@ -1,0 +1,25 @@
+[Unit]
+Description=Telegram RSS Bot - 24.hu News Translator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# IMPORTANT: Replace 'yourusername' with your actual username (run 'whoami' to find it)
+User=yourusername
+Group=yourusername
+# IMPORTANT: Replace with your actual bot directory path
+WorkingDirectory=/home/yourusername/rss-bot
+ExecStart=/usr/bin/python3 /home/yourusername/rss-bot/rss_bot.py
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rss-bot
+
+[Install]
+WantedBy=multi-user.target
