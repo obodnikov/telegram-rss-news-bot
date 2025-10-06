@@ -89,7 +89,10 @@ class OpenAITranslator(Translator):
                 messages=[
                     {
                         "role": "system", 
-                        "content": f"You are a professional translator. Translate the following {self.source_lang} text to {self.target_lang}. Preserve the tone, style, and formatting. Provide ONLY the translation, no explanations."
+                        "content": f"You are a professional translator. Translate the following {self.source_lang} text to {self.target_lang}. Follow these rules:\n"
+                                f"1. Preserve the tone, style, and formatting\n"
+                                f"2. Do NOT translate proper nouns: keep names of people, places, organizations, and brands in their original form\n"
+                                f"3. Provide ONLY the translation, no explanations"
                     },
                     {"role": "user", "content": text}
                 ],
@@ -130,7 +133,12 @@ class AnthropicTranslator(Translator):
                 messages=[
                     {
                         "role": "user",
-                        "content": f"Translate this {self.source_lang} text to {self.target_lang}. Preserve tone and style. Provide ONLY the translation:\n\n{text}"
+                        "content": f"Translate the following {self.source_lang} text to {self.target_lang}.\n\n"
+                                f"Rules:\n"
+                                f"1. Preserve the tone, style, and formatting\n"
+                                f"2. Do NOT translate proper nouns: keep names of people, places, organizations, and brands in their original form\n"
+                                f"3. Provide ONLY the translation, no explanations\n\n"
+                                f"Text to translate:\n{text}"
                     }
                 ]
             )
