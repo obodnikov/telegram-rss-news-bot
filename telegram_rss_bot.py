@@ -35,7 +35,7 @@ class GoogleTranslator(Translator):
     def __init__(self, source_lang: str, target_lang: str):
         from deep_translator import GoogleTranslator as GT
         self.translator = GT(source=source_lang, target=target_lang)
-        self.max_length = 5000
+        self.max_length = 3000
     
     def translate(self, text: str) -> str:
         try:
@@ -247,7 +247,7 @@ def create_translator(translator_type: str, source_lang: str, target_lang: str,
 
 class RSSBot:
     def __init__(self, telegram_token, chat_id, rss_url, translator: Translator, 
-                 check_interval, max_description_length=500, max_content_length=5000):
+                 check_interval, max_description_length=500, max_content_length=3000):
         """
         Initialize the RSS bot
         
@@ -509,8 +509,8 @@ Environment variables:
     
     parser.add_argument('--max-content',
                         type=int,
-                        default=int(os.getenv('MAX_CONTENT_LENGTH', '5000')),
-                        help='Max content length (default: 5000)')
+                        default=int(os.getenv('MAX_CONTENT_LENGTH', '3000')),
+                        help='Max content length (default: 3000)')
     
     # Other options
     parser.add_argument('--once',
