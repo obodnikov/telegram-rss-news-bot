@@ -2,11 +2,19 @@ import asyncio
 import feedparser
 import hashlib
 import argparse
+from dotenv import load_dotenv
 import os
+
+# Load .env file before anything else
+load_dotenv()
+
+
 from telegram import Bot
 from telegram.error import TelegramError
 import logging
 from abc import ABC, abstractmethod
+
+load_dotenv()
 
 
 # ============================================================================
