@@ -72,3 +72,7 @@ htmlcov/
 Thumbs.db
 .Spotlight-V100
 .Trashes
+
+# App Specific
+message_history.json
+message_history*.json
